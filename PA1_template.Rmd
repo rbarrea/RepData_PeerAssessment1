@@ -1,25 +1,178 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Reproducible Research Course Project 1"
+author: "RAUL BARREA"
+date: "September 9, 2018"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-## Loading and preprocessing the data
+# Part 1: Loading and preprocessing the data
+This code reads the file containing  data from a personal activity monitoring device. 
+
+This device collects data at 5 minute intervals through out the day. 
+
+The data consists of two months of data from an anonymous individual 
+collected during the months of October and November, 2012 
+and include the number of steps taken in 5 minute intervals each day.
+
+##load dplyr library
+```{r message=FALSE}
+library(dplyr)
+```
+
+##set working directory, loads the file, and group data by date
 
 
+```{r }
+setwd("C:/Users/raul/Documents/Raul_Barrea_Coursera/REproducible Research")
+file.url <- "https://d396qusza40orc.cloudfront.net/repdata/data/activity.zip"
+download.file(file.url,"activity.zip")
+unzip("activity.zip")
+activity <- read.csv("activity.csv")
+activity.by.date <- activity %>% group_by(date)
 
-## What is mean total number of steps taken per day?
+```
+
+#What is mean total number of steps taken per day?
+
+Calculate Total number of steps per day, mean and median values
+ignoring mising values in the sum, mean, and median calculations.
+
+```{r , echo=TRUE}
+## here I keep the missing values when calculating the sum, otherwise it will replace the sum by zero.
+Total.steps.per.day <- activity.by.date %>% summarize(steps = sum(steps))
+## here I calculate the mean and median of all total steps without considering the NAs
+Mean.steps.total <- mean(Total.steps.per.day$steps,na.rm=TRUE)
+Median.steps.total <- median(Total.steps.per.day$steps,na.rm=TRUE)
+
+## Mean total number of steps taken per day
+Mean.steps.total
+
+## Median total number of steps taken per day
+Median.steps.total
+
+```
+
+## Plot the histogram of frequency of steps
+
+```{r}
+hist(Total.steps.per.day$steps, col= "red", xlab = "Number of steps",main= "Total number of steps/day", ylim = c(0, 20),xlim=c(0,25000),breaks=8)
+
+```
+
+# What is the average daily activity pattern?
+Group data by interval, calculate mean steps per interval. 
+ignoring mising values in the calculation
+
+```{r}
+
+##set interval to a specific format
+activity$interval <- sprintf("%04d", activity$interval)
+
+activity.by.interval <- activity %>% group_by(interval)
+
+Mean.steps.per.interval <- activity.by.interval %>% summarize(steps = mean(steps,na.rm=TRUE))
+
+Num.intervals <- seq(from=1,to= length(Mean.steps.per.interval$steps))
+```
+
+Plotting Average # of Steps per interval 
+```{r}
+plot(Num.intervals, Mean.steps.per.interval$steps, type= "l", xlab= "Interval", ylab= "Steps",main="Average # of Steps/Time interval", col="red" , lwd=2)
+```
+
+Interval with maximum nuber of steps on average
+```{r echo=TRUE}
+Max.interval <- which(Mean.steps.per.interval$steps==max(Mean.steps.per.interval$steps))
+Max.interval
+```
+
+# Imputing missing values
+How many NAs in the data set?
+```{r}
+Number.of.NAs <- length(which(is.na(activity$steps)))
+Number.of.NAs
+```
+
+Replaces NAs using the average steps in a given day
+
+if there is no mean value on a given day, a zero value is assigned
+```{r}
+activity.by.date <- activity %>% group_by(date)
+##calculate the mean value per day
+Mean.steps.per.day <- activity.by.date %>% summarize(meansteps = mean(steps,na.rm=TRUE))
+##assigns zero of there is no mean (due to NAs)
+Mean.steps.per.day[which(is.na(Mean.steps.per.day[,2])),2] <- 0
+
+New.activity <- merge(activity,Mean.steps.per.day,by="date")
+new.vector <- which(is.na(New.activity[,2]))
+New.activity[new.vector,2] <- New.activity[new.vector,4]
+New.activity.per.day <- New.activity %>% group_by(date)
+
+##Calculate Total number of steps per day, mean and median values
+## mising values were replaced by mean value per day.
+
+Total.steps.per.day <- New.activity.per.day %>% summarize(steps = sum(steps))
+Mean.steps.total <- mean(Total.steps.per.day$steps)
+Median.steps.total <- median(Total.steps.per.day$steps)
+
+## Mean total number of steps taken per day
+Mean.steps.total
+
+## Median total number of steps taken per day
+Median.steps.total
+```
+
+Plot the histogram of frequency of steps
+
+```{r}
+
+hist(Total.steps.per.day$steps, col= "blue", xlab = "Number of Steps per day",main= "Total number of steps/day", ylim = c(0, 20),xlim=c(0,25000),breaks=8)
+
+```
+
+# Are there differences in activity patterns between weekdays and weekends?
 
 
+Recalculate mean and median considering weekdays and weekends.
 
-## What is the average daily activity pattern?
+```{r}
+##Set factor: Weekends and weekdays
+New.activity.per.day$date <- weekdays(as.Date(New.activity.per.day$date, format = "%Y-%m-%d"))
+weekdays1 <- c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+
+New.activity.per.day$wDay <- factor((New.activity.per.day$date %in% weekdays1), levels=c("FALSE", "TRUE"), labels=c('weekend', 'weekday'))
+                                    
+##Calculate Total number of steps per day, mean and median values
+## mising values were replaced by mean value per day.
+
+Total.steps.per.day <- New.activity.per.day %>% summarize(steps = sum(steps))
+Mean.steps.total <- mean(Total.steps.per.day$steps)
+Median.steps.total <- median(Total.steps.per.day$steps)
+
+activity.per.interval <- New.activity.per.day %>% group_by(wDay, interval)
+
+Mean.steps.per.interval <- activity.per.interval %>% summarize(steps = mean(steps,na.rm=TRUE))
+
+Mean.steps.per.interval.weekend <- Mean.steps.per.interval[which(Mean.steps.per.interval$wDay=="weekend"),]
+Mean.steps.per.interval.weekday <- Mean.steps.per.interval[which(Mean.steps.per.interval$wDay=="weekday"),]
+
+## plot the histogram of frequency of steps
+
+Num.steps <- seq(from=1,to = nrow(Mean.steps.per.interval.weekday))
+
+```
+
+plot panel comparing weekends and weekdays
+```{r}
+attach(Mean.steps.per.interval.weekday)
+par(mfrow=c(2,1)) 
+
+plot(Num.steps, Mean.steps.per.interval.weekday$steps, type= "l", xlab= "Interval", ylab= "Steps",main="Average # of Steps/Time interval on Weekdays", col="red" , lwd=2)
+plot(Num.steps, Mean.steps.per.interval.weekend$steps, type= "l", xlab= "Interval", ylab= "Steps",main="Average # of Steps/Time interval on weekends", col="blue" , lwd=2)
+```
 
 
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
