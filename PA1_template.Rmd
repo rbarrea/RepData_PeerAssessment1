@@ -175,4 +175,3 @@ plot(Num.steps, Mean.steps.per.interval.weekday$steps, type= "l", xlab= "Interva
 plot(Num.steps, Mean.steps.per.interval.weekend$steps, type= "l", xlab= "Interval", ylab= "Steps",main="Average # of Steps/Time interval on weekends", col="blue" , lwd=2)
 ```
 
-
